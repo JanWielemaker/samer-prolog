@@ -172,6 +172,6 @@ literal(Lit) --> {atomic(Lit)}, quote(at(Lit)).
 uri(U) --> {atom(U)}, "<", at(U), ">".
 quote(P) --> "\"", escape_with(0'",0'\\,P), "\"".
 variable(V)  --> {var_number(V,N)}, "?v", at(N).
-variable(@V) --> "_:", {atomic(V) -> N=V; var_number(V,N)}, at(N).
+variable(@(V)) --> "_:", {atomic(V) -> N=V; var_number(V,N)}, at(N).
 variable(@)  --> "[]".
 
