@@ -45,7 +45,14 @@
 :- setting(limit,integer,100,'Default SPARQL SELECT limit').
 :- setting(select_options,list,[distinct(true)],'Default select options').
 
-:- meta_predicate query_phrase(+,//,-).
+:- meta_predicate
+	sparql_endpoint(:,+),
+	sparql_endpoint(:,+,+),
+	current_sparql_endpoint(:,?,?,?,?),
+	query_goal(:,?,+),
+	query_phrase(:,//,-),
+	query_sparql(:,?,+),
+	??(:,+).
 
 sandbox:safe_meta(sparql_dcg:phrase_to_sparql(Phr,_),[Phr]).
 sandbox:safe_primitive(sparql_dcg:select(_,_,_,_,_)).
@@ -77,27 +84,28 @@ spec_goal_opts(Goal,Goal,[]).
  * Assert/declare a new sparql end point
  */
 
-%% sparql_endpoint(+EP:ground, +URL:atom, +Options) is det.
-%% sparql_endpoint(+EP:ground, +URL:atom) is det.
+%% sparql_endpoint(:EP:ground, +URL:atom, +Options) is det.
+%% sparql_endpoint(:EP:ground, +URL:atom) is det.
 %
 %  Declares EP as a short name for a SPARQL endpoint with the given URL.
 %  No options are defined at the moment.
 sparql_endpoint(EP,Url) :- sparql_endpoint(EP,Url,[]).
-sparql_endpoint(EP,Url,Options) :-
+sparql_endpoint(M:EP,Url,Options) :-
    url_endpoint(Url,Host,Port,Path),
-   (  sparql_endpoint(EP,Host,Port,Path,_)
-   -> format('% WARNING: Updating already registered SPARQL end point ~w.\n',[Url]),
-      retractall(sparql_endpoint(EP,Host,Port,Path,_))
+   (   current_predicate(M:sparql_endpoint/5),
+       sparql_endpoint(EP,Host,Port,Path,_)
+   ->  format('% WARNING: Updating already registered SPARQL end point ~w.\n',[Url]),
+       retractall(M:sparql_endpoint(EP,Host,Port,Path,_))
    ),
-	debug(sparkle,'Asserting SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
-   assert(sparql_endpoint(EP,Host,Port,Path,Options)).
+   debug(sparkle,'Asserting SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
+   assert(M:sparql_endpoint(EP,Host,Port,Path,Options)).
 
 user:term_expansion(:-(sparql_endpoint(EP,Url)), Expanded) :-
    endpoint_declaration(EP,Url,[],Expanded).
 user:term_expansion(:-(sparql_endpoint(EP,Url,Options)), Expanded) :-
    endpoint_declaration(EP,Url,Options,Expanded).
 
-endpoint_declaration(EP,Url,Options, sparkle:sparql_endpoint(EP,Host,Port,Path,Options)) :-
+endpoint_declaration(EP,Url,Options, sparql_endpoint(EP,Host,Port,Path,Options)) :-
     debug(sparkle,'Declaring SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
     url_endpoint(Url,Host,Port,Path).
 
@@ -111,8 +119,10 @@ url_endpoint(Url,Host,Port,Path) :-
 %% current_sparql_endpoint(-EP:ground,-Host:atom,-Port:natural,-Path:atom,-Options:list) is nondet.
 %
 %  Succeeds once for each known endpoint.
-current_sparql_endpoint(EP,Host,Port,Path,Options) :-
-   sparql_endpoint(EP,Host,Port,Path,Options).
+current_sparql_endpoint(M0:EP,Host,Port,Path,Options) :-
+   default_module(M0,M),
+   current_predicate(M:sparql_endpoint/5),
+   M:sparql_endpoint(EP,Host,Port,Path,Options).
 
 
 % ----------------------------------------------------
@@ -146,7 +156,7 @@ current_sparql_endpoint(EP,Host,Port,Path,Options) :-
 %  Other options are passed to phrase_to_sparql/2.
 
 query_goal(EP,Goal,Opts) :-
-   findall(EP,sparql_endpoint(EP,_,_,_,_),EPs),
+   findall(QEP,endpoint(EP, QEP),EPs),
    term_variables(Goal,Vars),
    (  Vars = [] % if no variables, do an ASK query, otherwise, SELECT
    -> phrase_to_sparql(ask(Goal),SPARQL),
@@ -165,6 +175,11 @@ query_goal(EP,Goal,Opts) :-
       phrase_to_sparql(select(Vars,Goal,Opts1),SPARQL),
       parallel_query(Query,EPs,EP-Result)
    ).
+
+endpoint(M0:EP, M:EP) :-
+    default_module(M0,M),
+    current_predicate(M:sparql_endpoint/5),
+    M:sparql_endpoint(EP,_,_,_,_).
 
 cons(X,T,[X|T]).
 option_default_select(Opt,Def,O1,O2) :- select_option(Opt,O1,O2,Def).
@@ -229,8 +244,10 @@ phrase_to_sparql(Phrase,SPARQL) :-
 %  Runs textual SPARQL query against an endpoint, exactly as
 %  with sparql_query/3. If EP is unbound on entry, all known
 %  endpoints will be tried sequentially.
-query_sparql(EP,SPARQL,Result) :-
-   sparql_endpoint(EP,Host,Port,Path,EPOpts),
+query_sparql(M0:EP,SPARQL,Result) :-
+   default_module(M0,M),
+   current_predicate(M:sparql_endpoint/5),
+   M:sparql_endpoint(EP,Host,Port,Path,EPOpts),
    debug(sparkle,'Querying endpoint http://~w:~w~w',[Host,Port,Path]),
    sparql_query(SPARQL,Result,[host(Host),port(Port),path(Path)|EPOpts]).
 
