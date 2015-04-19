@@ -12,7 +12,7 @@
 	]).
 
 /** <module> Query to SPARQL endpoints with a more Prolog-like syntax
- 
+
   Samer Abdallah, Dept. of Computer Science, UCL (2014)
   Based on Yves Raimond's swic package, but completely re-written.
 
@@ -20,7 +20,7 @@
    and a database of known SPARQL endpoints. Queries can be executed
    across multiple endpoints in parallel. When using auto-paging,
    multiple queries are made automatically to fetch new bindings as
-   they are needed. For example, 
+   they are needed. For example,
    ==
    EP ?? rdf(A,B,C).
    ==
@@ -64,7 +64,7 @@ sandbox:safe_primitive(sparql_dcg:ask(_,_,_)).
 %  the setting sparkle:select_options. See query_goal/3 for details.
 %  IF EP is unbound on entry, it is bound to the endpoint from which
 %  the current bindings were obtained.
-??(EP,Spec) :- 
+??(EP,Spec) :-
    spec_goal_opts(Spec,Goal,Opts),
    setting(select_options,Opts0),
    merge_options(Opts,Opts0,Opts1),
@@ -84,28 +84,28 @@ spec_goal_opts(Goal,Goal,[]).
 %  No options are defined at the moment.
 sparql_endpoint(EP,Url) :- sparql_endpoint(EP,Url,[]).
 sparql_endpoint(EP,Url,Options) :-
-   url_endpoint(Url,Host,Port,Path), 
-	(	sparql_endpoint(EP,Host,Port,Path,_)
+   url_endpoint(Url,Host,Port,Path),
+   (  sparql_endpoint(EP,Host,Port,Path,_)
    -> format('% WARNING: Updating already registered SPARQL end point ~w.\n',[Url]),
       retractall(sparql_endpoint(EP,Host,Port,Path,_))
    ),
 	debug(sparkle,'Asserting SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
    assert(sparql_endpoint(EP,Host,Port,Path,Options)).
 
-user:term_expansion(:-(sparql_endpoint(EP,Url)), Expanded) :- 
+user:term_expansion(:-(sparql_endpoint(EP,Url)), Expanded) :-
    endpoint_declaration(EP,Url,[],Expanded).
-user:term_expansion(:-(sparql_endpoint(EP,Url,Options)), Expanded) :- 
+user:term_expansion(:-(sparql_endpoint(EP,Url,Options)), Expanded) :-
    endpoint_declaration(EP,Url,Options,Expanded).
 
 endpoint_declaration(EP,Url,Options, sparkle:sparql_endpoint(EP,Host,Port,Path,Options)) :-
-	debug(sparkle,'Declaring SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
-   url_endpoint(Url,Host,Port,Path).
+    debug(sparkle,'Declaring SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
+    url_endpoint(Url,Host,Port,Path).
 
 url_endpoint(Url,Host,Port,Path) :-
-	parse_url(Url,Parsed),
-	member(host(Host),Parsed),
-	member(path(Path),Parsed),
-	(member(port(Port),Parsed);Port=80).
+    parse_url(Url,Parsed),
+    member(host(Host),Parsed),
+    member(path(Path),Parsed),
+    (member(port(Port),Parsed);Port=80).
 
 
 %% current_sparql_endpoint(-EP:ground,-Host:atom,-Port:natural,-Path:atom,-Options:list) is nondet.
@@ -116,7 +116,7 @@ current_sparql_endpoint(EP,Host,Port,Path,Options) :-
 
 
 % ----------------------------------------------------
-% Goal-based queries 
+% Goal-based queries
 % These get translated into phrase-based queries.
 
 %% query_goal(+EP,+Goal:sparql_goal,+Opts) is nondet.
@@ -124,7 +124,7 @@ current_sparql_endpoint(EP,Host,Port,Path,Options) :-
 %
 %  Runs a SPARQL query against one or more SPARLQ endpoints.
 %  Goal is converted into a textual SPARQL query using the DCG
-%  defined in sparql_dcg.pl. 
+%  defined in sparql_dcg.pl.
 %
 %  If EP is ground on entry, the query is run against the specified endpoint.
 %  If EP is unbound on entry, the query is run agains all endpoints
@@ -145,7 +145,7 @@ current_sparql_endpoint(EP,Host,Port,Path,Options) :-
 %        retrieved from the endpoint at a time.
 %  Other options are passed to phrase_to_sparql/2.
 
-query_goal(EP,Goal,Opts) :- 
+query_goal(EP,Goal,Opts) :-
    findall(EP,sparql_endpoint(EP,_,_,_,_),EPs),
    term_variables(Goal,Vars),
    (  Vars = [] % if no variables, do an ASK query, otherwise, SELECT
@@ -160,7 +160,7 @@ query_goal(EP,Goal,Opts) :-
                      option_default_select(offset(_),_)
                   ;  {Query = simple_query(SPARQL)},
                      cons(limit(Limit))
-                  ) 
+                  )
                ), Opts, Opts1),
       phrase_to_sparql(select(Vars,Goal,Opts1),SPARQL),
       parallel_query(Query,EPs,EP-Result)
@@ -206,7 +206,7 @@ par_goal(P,Y,X,call(P,X,Y)).
 % ==
 % =|row(N)|= is the type of terms of functor row/N.
 
-query_phrase(EP,Phrase,Result) :- 
+query_phrase(EP,Phrase,Result) :-
    phrase_to_sparql(Phrase,SPARQL),
    query_sparql(EP,SPARQL,Result).
 
@@ -228,7 +228,7 @@ phrase_to_sparql(Phrase,SPARQL) :-
 %
 %  Runs textual SPARQL query against an endpoint, exactly as
 %  with sparql_query/3. If EP is unbound on entry, all known
-%  endpoints will be tried sequentially. 
+%  endpoints will be tried sequentially.
 query_sparql(EP,SPARQL,Result) :-
    sparql_endpoint(EP,Host,Port,Path,EPOpts),
    debug(sparkle,'Querying endpoint http://~w:~w~w',[Host,Port,Path]),
