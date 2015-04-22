@@ -255,9 +255,17 @@ query_goal(EP,Goal,Opts) :-
    ).
 
 endpoint(M0:EP, M:EP) :-
+    var(EP), !,
     default_module(M0,M),
     current_predicate(M:sparql_endpoint/5),
     M:sparql_endpoint(EP,_,_,_,_).
+endpoint(M0:EP, M:EP) :-
+    (	default_module(M0,M),
+	current_predicate(M:sparql_endpoint/5),
+	M:sparql_endpoint(EP,_,_,_,_)
+    ->	true
+    ;	existence_error(sparql_endpoint, EP)
+    ).
 
 simple_query(SPARQL,EP,EP-Result) :- query_sparql(EP,SPARQL,Result).
 autopage_query(Limit,SPARQL,EP,EP-Result) :- autopage(EP,SPARQL,Limit,0,Result).
@@ -328,9 +336,17 @@ query_sparql(EP,SPARQL,Result) :-
     sparql_query(SPARQL,Result,[host(Host),port(Port),path(Path)|EPOpts]).
 
 endpoint(M0:EP, Host,Port,Path,EPOpts) :-
+    var(EP), !,
     default_module(M0,M),
     current_predicate(M:sparql_endpoint/5),
     M:sparql_endpoint(EP,Host,Port,Path,EPOpts).
+endpoint(M0:EP, Host,Port,Path,EPOpts) :-
+    (	default_module(M0,M),
+	current_predicate(M:sparql_endpoint/5),
+	M:sparql_endpoint(EP,Host,Port,Path,EPOpts)
+    ->	true
+    ;	existence_error(sparql_endpoint, EP)
+    ).
 
 
 		 /*******************************
