@@ -66,7 +66,6 @@
    Samer Abdallah, Dept. of Computer Science, UCL (2014)
  */
 
-:- use_module(library(semweb/rdf_db), [rdf_global_object/2, rdf_global_id/2]).
 :- use_module(library(dcg_core)).
 :- use_module(library(dcg_codes)).
 
@@ -117,10 +116,9 @@ goal((G1,G2)) --> goal(G1), " . ", goal(G2).
 goal(conj(GS)) --> seqmap_with_sep(" , ",goal,GS).
 
 goal(rdf(S,P,O)) -->
-   { rdf_global_object(O,OO) },
    resource(S), " ",
    resource(P), " ",
-   object(OO).
+   object(O).
 
 goal(filter(Cond)) --> "FILTER ", cond(Cond).
 
@@ -159,8 +157,8 @@ expr(X/Y) --> p expr(X), " / ", expr(Y).
 expr(X) --> {number(X)}, at(X).
 expr(X) --> object(X).
 
-resource(R) --> variable(R).
-resource(R) --> {rdf_global_id(R,RR)}, uri(RR).
+resource(R) --> variable(R), !.
+resource(R) --> uri(R).
 
 object(literal(Lit)) --> literal(Lit).
 object(Resource) --> resource(Resource).

@@ -1,6 +1,8 @@
 :- module(sparkle,[
       sparql_endpoint/2
    ,  sparql_endpoint/3
+   ,  sparql_prefix/2			% +Prefix, +URL
+   ,  current_sparql_prefix/2		% ?Prefix, ?URL
    ,  current_sparql_endpoint/5
    ,  query_goal/3     % Endpoint, Context, Opts
    ,  query_phrase/3   % Endpoint, QueryPhrase, Result
@@ -53,7 +55,9 @@
 :- meta_predicate
 	sparql_endpoint(:,+),
 	sparql_endpoint(:,+,+),
+	sparql_prefix(:,+),
 	current_sparql_endpoint(:,?,?,?,?),
+	current_sparql_prefix(:,-),
 	query_goal(:,?,+),
 	query_phrase(:,//,-),
 	query_sparql(:,?,+),
@@ -134,6 +138,70 @@ current_sparql_endpoint(M0:EP,Host,Port,Path,Options) :-
    current_predicate(M:sparql_endpoint/5),
    M:sparql_endpoint(EP,Host,Port,Path,Options).
 
+%% sparql_prefix(+Prefix,+Url) is det.
+%
+% Register a prefix for use with SPARQL queries
+
+sparql_prefix(M:Prefix, URL) :-
+    must_be(atom, Prefix),
+    must_be(atom, URL),
+    M:assert('sparql prefix'(Prefix, URL)).
+
+user:term_expansion(sparql_prefix(Prefix,URL),
+		    'sparql prefix'(Prefix, URL)) :-
+    must_be(atom, Prefix),
+    must_be(atom, URL).
+
+%% current_sparql_prefix(:Prefix, ?URL) is nondet.
+%
+%  True when Prefix is a registered prefix for URL.
+
+current_sparql_prefix(M0:Prefix, URL) :-
+    default_module(M0,M),
+    current_predicate(M:'sparql prefix'/2),
+    M:'sparql prefix'(Prefix, URL).
+current_sparql_prefix(_:Prefix, URL) :-
+    (	current_predicate(rdf_db:ns/2)
+    ->	rdf_db:ns(Prefix, URL)
+    ;	default_prefix(Prefix, URL)
+    ).
+
+default_prefix(rdf,	'http://www.w3.org/1999/02/22-rdf-syntax-ns#').
+default_prefix(rdfs,	'http://www.w3.org/2000/01/rdf-schema#').
+default_prefix(owl,	'http://www.w3.org/2002/07/owl#').
+default_prefix(xsd,	'http://www.w3.org/2001/XMLSchema#').
+default_prefix(dc,	'http://purl.org/dc/elements/1.1/').
+default_prefix(dcterms,	'http://purl.org/dc/terms/').
+default_prefix(eor,	'http://dublincore.org/2000/03/13/eor#').
+default_prefix(skos,	'http://www.w3.org/2004/02/skos/core#').
+default_prefix(foaf,	'http://xmlns.com/foaf/0.1/').
+default_prefix(void,	'http://rdfs.org/ns/void#').
+
+%% expand_prefixes(+TermIn, +Module, -Term)
+%
+%  Expand prefixes in TermIn for the given context Module.
+
+expand_prefixes(Var, _, VarOut) :-
+    var(Var), !,
+    VarOut = Var.
+expand_prefixes(P:L, M, URL) :- !,
+    must_be(atom, P),
+    (	current_sparql_prefix(M:P, Ex)
+    ->	atom_concat(Ex, L, URL)
+    ;	existence_error(prefix, P)
+    ).
+expand_prefixes(In, M, Out) :-
+    compound(In), !,
+    compound_name_arguments(In, Name, ArgsIn),
+    expand_prefix_list(ArgsIn, M, ArgsOut),
+    compound_name_arguments(Out, Name, ArgsOut).
+expand_prefixes(Term, _, Term).
+
+expand_prefix_list([], _, []).
+expand_prefix_list([H0|T0], M, [H|T]) :-
+    expand_prefixes(H0, M, H),
+    expand_prefix_list(T0, M, T).
+
 
 % ----------------------------------------------------
 % Goal-based queries
@@ -169,7 +237,9 @@ current_sparql_endpoint(M0:EP,Host,Port,Path,Options) :-
 
 query_goal(EP,Goal,Opts) :-
    findall(QEP,endpoint(EP, QEP),EPs),
-   term_variables(Goal,Vars),
+   EP=M:_,
+   expand_prefixes(Goal,M,Goal1),
+   term_variables(Goal1,Vars),
    (  Vars = [] % if no variables, do an ASK query, otherwise, SELECT
    -> phrase_to_sparql(ask(Goal),SPARQL),
       parallel_query(simple_query(SPARQL),EPs,EP-true)
@@ -177,9 +247,9 @@ query_goal(EP,Goal,Opts) :-
       setting(limit,DefaultLimit),
       select_option(limit(Limit),Opts,Opts1,DefaultLimit),
       (	  select_option(autopage(true),Opts1,Opts2)
-      ->  phrase_to_sparql(select(Vars,Goal,Opts2),SPARQL),
+      ->  phrase_to_sparql(select(Vars,Goal1,Opts2),SPARQL),
 	  parallel_query(autopage_query(Limit,SPARQL),EPs,EP-Result)
-      ;	  phrase_to_sparql(select(Vars,Goal,Opts1),SPARQL),
+      ;	  phrase_to_sparql(select(Vars,Goal1,Opts1),SPARQL),
 	  parallel_query(simple_query(SPARQL),EPs,EP-Result)
       )
    ).
@@ -228,7 +298,9 @@ par_goal(P,Y,X,call(P,X,Y)).
 % =|row(N)|= is the type of terms of functor row/N.
 
 query_phrase(EP,Phrase,Result) :-
-   phrase_to_sparql(Phrase,SPARQL),
+   EP=M:_,
+   expand_prefixes(Phrase,M,Phrase1),
+   phrase_to_sparql(Phrase1,SPARQL),
    query_sparql(EP,SPARQL,Result).
 
 
@@ -267,10 +339,12 @@ endpoint(M0:EP, Host,Port,Path,EPOpts) :-
 
 :- multifile
 	sandbox:safe_primitive/1,
-	sandbox:safe_meta/2.
+	sandbox:safe_meta/2,
+	sandbox:safe_meta_predicate/1.
 
 sandbox:safe_primitive(sparkle:endpoint(_,_)).
 sandbox:safe_primitive(sparkle:endpoint(_,_,_,_,_)).
+sandbox:safe_meta_predicate(sparkle:current_sparql_prefix/2).
 sandbox:safe_meta(sparkle:parallel_query(P, _Xs, _Y), [Calls]) :-
 	extend(P, [_,_], Calls).
 sandbox:safe_meta(sparkle:phrase_to_sparql(Phr,_),[PhrEx]) :-
