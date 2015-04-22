@@ -29,7 +29,6 @@
    sparkle:limit takes it's default value of 100).
 */
 
-:- use_module(library(sandbox)).
 :- use_module(library(debug)).
 :- use_module(library(error)).
 :- use_module(library(uri)).
@@ -265,6 +264,10 @@ endpoint(M0:EP, Host,Port,Path,EPOpts) :-
 		 /*******************************
 		 *	  LOCAL SANDBOX		*
 		 *******************************/
+
+:- multifile
+	sandbox:safe_primitive/1,
+	sandbox:safe_meta/2.
 
 sandbox:safe_primitive(sparkle:endpoint(_,_)).
 sandbox:safe_primitive(sparkle:endpoint(_,_,_,_,_)).
