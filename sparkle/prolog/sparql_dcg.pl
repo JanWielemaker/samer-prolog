@@ -120,11 +120,12 @@ goal(\+G)     --> "FILTER NOT EXISTS ", brace(goal(G)). %NB consider MINUS { ...
 goal((G1,G2)) --> goal(G1), " . ", goal(G2).
 goal(conj(GS)) --> seqmap_with_sep(" , ",goal,GS).
 
+goal(rdf(S,P,O,G)) --> !,
+   "GRAPH ", resource(G), " ", brace(goal(rdf(S,P,O))).
 goal(rdf(S,P,O)) -->
    resource(S), " ",
    resource(P), " ",
    object(O).
-
 goal(filter(Cond)) --> "FILTER ", cond(Cond).
 
 :- op(1150,fx,p).
