@@ -111,6 +111,7 @@ describe(RS,Goal) -->
    where(Goal).
 
 %% where(+Goal:sparql_goal)// is det.
+where({Goal}) --> "WHERE ", brace(goal(Goal)).
 where(Goal) --> "WHERE ", brace(goal(Goal)).
 
 %% goal(+Goal)// is det.
