@@ -1,4 +1,7 @@
 :- module(concurrency, [concurrent_or/1, concurrent_or/3]).
+:- use_module(library(apply)).
+:- use_module(library(option)).
+:- use_module(library(debug)).
 
 :- meta_predicate concurrent_or(-,:,+).
 :- meta_predicate concurrent_or(:).
@@ -20,7 +23,7 @@ concurrent_or(Goals) :-
 %     *  on_error(OnError:oneof([stop,continue]))
 %        If OnError=stop, then an exception occuring in any goal stops all
 %        goals and is propagated back to and then thrown from the main thread.
-%        If OnError=continue, then an exception in a goal terminates only 
+%        If OnError=continue, then an exception in a goal terminates only
 %        that thread, with a error message printed. The default is stop.
 %     *  queue_factor(K:natural)
 %        Solutions are communicated via a message queue of size K*length(Goals).
@@ -68,3 +71,14 @@ worker(Goal,Var,Q) :-
    ;  thread_send_message(Q,failed(Me)),
       debug(concurrency,'Worker finished normally.',[])
    ).
+
+		 /*******************************
+		 *	  SANDBOX SUPPORT	*
+		 *******************************/
+
+:- multifile sandbox:safe_meta/2.
+
+sandbox:safe_meta(concurrency:concurrent_or(_,M:List,_), Calls) :-
+	maplist(qualify(M), List, Calls).
+
+qualify(M, G, M:G).
