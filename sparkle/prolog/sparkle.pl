@@ -30,6 +30,8 @@
 */
 
 :- use_module(library(sandbox)).
+:- use_module(library(debug)).
+:- use_module(library(uri)).
 :- use_module(library(settings)).
 :- use_module(library(semweb/sparql_client)).
 :- use_module(library(dcg_core)).
@@ -111,11 +113,20 @@ endpoint_declaration(EP,Url,Options, sparql_endpoint(EP,Host,Port,Path,Options))
     url_endpoint(Url,Host,Port,Path).
 
 url_endpoint(Url,Host,Port,Path) :-
-    parse_url(Url,Parsed),
-    member(host(Host),Parsed),
-    member(path(Path),Parsed),
-    (member(port(Port),Parsed);Port=80).
+    uri_components(Url, Components),
+    uri_data(authority, Components, Authority),
+    uri_authority_components(Authority, AuthComponents),
+    uri_authority_data(host, AuthComponents, Host),
+    uri_authority_data(port, AuthComponents, Port),
+    uri_data(path, Components, Path),
+    (	var(Port)
+    ->	uri_data(scheme, Components, Scheme),
+	scheme_default_port(Scheme, Port)
+    ;	true
+    ).
 
+scheme_default_port(http, 80).
+scheme_default_port(https, 443).
 
 %% current_sparql_endpoint(-EP:ground,-Host:atom,-Port:natural,-Path:atom,-Options:list) is nondet.
 %
