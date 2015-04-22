@@ -181,9 +181,23 @@ literal(lang(Lang,Val)) --> quote(at(Val)), "@", at(Lang).
 literal(type(Type,Val)) --> quote(wr(Val)), "^^", resource(Type).
 literal(Lit) --> {atomic(Lit)}, quote(at(Lit)).
 
-uri(U) --> {atom(U)}, "<", at(U), ">".
+uri(U) --> {iri(U)}, "<", at(U), ">".
 quote(P) --> "\"", escape_with(0'",0'\\,P), "\"".
 variable(V)  --> {var_number(V,N)}, "?v", at(N).
 variable(@(V)) --> "_:", {atomic(V) -> N=V; var_number(V,N)}, at(N).
 variable(@)  --> "[]".
 
+iri(Atom) :-
+    atom(Atom),
+    \+ ( string_code(_, Atom, Code),
+	 not_iri_ref_code(Code)
+       ).
+
+term_expansion(not_iri_ref_code(x), Clauses) :-
+    findall(not_iri_ref_code(X),
+	    (   between(0,32,X)
+	    ;   member(X, `<>"{}|^\`\\`)
+	    ),
+	    Clauses).
+
+not_iri_ref_code(x).
