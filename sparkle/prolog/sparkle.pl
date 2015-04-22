@@ -31,8 +31,12 @@
 
 :- use_module(library(sandbox)).
 :- use_module(library(debug)).
+:- use_module(library(error)).
 :- use_module(library(uri)).
+:- use_module(library(lists)).
+:- use_module(library(apply)).
 :- use_module(library(settings)).
+:- use_module(library(option)).
 :- use_module(library(semweb/sparql_client)).
 :- use_module(library(dcg_core)).
 :- use_module(library(dcg_codes)).
@@ -56,11 +60,6 @@
 	query_sparql(:,?,+),
 	??(:,+).
 
-sandbox:safe_meta(sparql_dcg:phrase_to_sparql(Phr,_),[Phr]).
-sandbox:safe_primitive(sparql_dcg:select(_,_,_,_,_)).
-sandbox:safe_primitive(sparql_dcg:describe(_,_,_,_)).
-sandbox:safe_primitive(sparql_dcg:describe(_,_,_)).
-sandbox:safe_primitive(sparql_dcg:ask(_,_,_)).
 
 %% '??'(+Goal:sparql_goal) is nondet.
 %  Equivalent to _ ?? Goal. Will query all endpoints
@@ -167,6 +166,8 @@ current_sparql_endpoint(M0:EP,Host,Port,Path,Options) :-
 %        retrieved from the endpoint at a time.
 %  Other options are passed to phrase_to_sparql/2.
 
+:- meta_predicate parallel_query(2,+,-).
+
 query_goal(EP,Goal,Opts) :-
    findall(QEP,endpoint(EP, QEP),EPs),
    term_variables(Goal,Vars),
@@ -175,17 +176,13 @@ query_goal(EP,Goal,Opts) :-
       parallel_query(simple_query(SPARQL),EPs,EP-true)
    ;  Result =.. [row|Vars],
       setting(limit,DefaultLimit),
-      call_dcg((  option_default_select(limit(Limit),DefaultLimit),
-                  option_default_select(autopage(Auto),true),
-                  (  {Auto=true}
-                  -> {Query = autopage_query(Limit,SPARQL)},
-                     option_default_select(offset(_),_)
-                  ;  {Query = simple_query(SPARQL)},
-                     cons(limit(Limit))
-                  )
-               ), Opts, Opts1),
-      phrase_to_sparql(select(Vars,Goal,Opts1),SPARQL),
-      parallel_query(Query,EPs,EP-Result)
+      select_option(limit(Limit),Opts,Opts1,DefaultLimit),
+      (	  select_option(autopage(true),Opts1,Opts2)
+      ->  phrase_to_sparql(select(Vars,Goal,Opts2),SPARQL),
+	  parallel_query(autopage_query(Limit,SPARQL),EPs,EP-Result)
+      ;	  phrase_to_sparql(select(Vars,Goal,Opts1),SPARQL),
+	  parallel_query(simple_query(SPARQL),EPs,EP-Result)
+      )
    ).
 
 endpoint(M0:EP, M:EP) :-
@@ -193,8 +190,6 @@ endpoint(M0:EP, M:EP) :-
     current_predicate(M:sparql_endpoint/5),
     M:sparql_endpoint(EP,_,_,_,_).
 
-cons(X,T,[X|T]).
-option_default_select(Opt,Def,O1,O2) :- select_option(Opt,O1,O2,Def).
 simple_query(SPARQL,EP,EP-Result) :- query_sparql(EP,SPARQL,Result).
 autopage_query(Limit,SPARQL,EP,EP-Result) :- autopage(EP,SPARQL,Limit,0,Result).
 
@@ -256,12 +251,15 @@ phrase_to_sparql(Phrase,SPARQL) :-
 %  Runs textual SPARQL query against an endpoint, exactly as
 %  with sparql_query/3. If EP is unbound on entry, all known
 %  endpoints will be tried sequentially.
-query_sparql(M0:EP,SPARQL,Result) :-
-   default_module(M0,M),
-   current_predicate(M:sparql_endpoint/5),
-   M:sparql_endpoint(EP,Host,Port,Path,EPOpts),
-   debug(sparkle,'Querying endpoint http://~w:~w~w',[Host,Port,Path]),
-   sparql_query(SPARQL,Result,[host(Host),port(Port),path(Path)|EPOpts]).
+query_sparql(EP,SPARQL,Result) :-
+    endpoint(EP, Host,Port,Path,EPOpts),
+    debug(sparkle,'Querying endpoint http://~w:~w~w',[Host,Port,Path]),
+    sparql_query(SPARQL,Result,[host(Host),port(Port),path(Path)|EPOpts]).
+
+endpoint(M0:EP, Host,Port,Path,EPOpts) :-
+    default_module(M0,M),
+    current_predicate(M:sparql_endpoint/5),
+    M:sparql_endpoint(EP,Host,Port,Path,EPOpts).
 
 
 		 /*******************************
@@ -269,6 +267,25 @@ query_sparql(M0:EP,SPARQL,Result) :-
 		 *******************************/
 
 sandbox:safe_primitive(sparkle:endpoint(_,_)).
+sandbox:safe_primitive(sparkle:endpoint(_,_,_,_,_)).
+sandbox:safe_meta(sparkle:parallel_query(P, _Xs, _Y), [Calls]) :-
+	extend(P, [_,_], Calls).
+sandbox:safe_meta(sparkle:phrase_to_sparql(Phr,_),[PhrEx]) :-
+	extend(Phr, [_,_], PhrEx).
+sandbox:safe_primitive(sparql_dcg:select(_,_,_,_,_)).
+sandbox:safe_primitive(sparql_dcg:describe(_,_,_,_)).
+sandbox:safe_primitive(sparql_dcg:describe(_,_,_)).
+sandbox:safe_primitive(sparql_dcg:ask(_,_,_)).
+
+extend(Var, _, _) :-
+    var(Var), !,
+    instantiation_error(Var).
+extend(M:Term, Ex, M:TermEx) :- !,
+    extend(Term, Ex, TermEx).
+extend(Term, Ex, TermEx) :-
+    Term =.. List,
+    append(List, Ex, ListEx),
+    TermEx =.. ListEx.
 
 
 		 /*******************************
