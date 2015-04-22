@@ -94,8 +94,9 @@ sparql_endpoint(M:EP,Url,Options) :-
    url_endpoint(Url,Host,Port,Path),
    (   current_predicate(M:sparql_endpoint/5),
        sparql_endpoint(EP,Host,Port,Path,_)
-   ->  format('% WARNING: Updating already registered SPARQL end point ~w.\n',[Url]),
+   ->  print_message(warning, sparkle(updated_endpoint(EP, Url))),
        retractall(M:sparql_endpoint(EP,Host,Port,Path,_))
+   ;   true
    ),
    debug(sparkle,'Asserting SPARQL end point ~w: ~w ~w ~w ~w.',[EP,Host,Port,Path,Options]),
    assert(M:sparql_endpoint(EP,Host,Port,Path,Options)).
@@ -251,3 +252,21 @@ query_sparql(M0:EP,SPARQL,Result) :-
    debug(sparkle,'Querying endpoint http://~w:~w~w',[Host,Port,Path]),
    sparql_query(SPARQL,Result,[host(Host),port(Port),path(Path)|EPOpts]).
 
+
+		 /*******************************
+		 *	  LOCAL SANDBOX		*
+		 *******************************/
+
+sandbox:safe_primitive(sparkle:endpoint(_,_)).
+
+
+		 /*******************************
+		 *	     MESSAGES		*
+		 *******************************/
+
+:- multifile prolog:message//1.
+
+prolog:message(sparkle(Msg)) --> message(Msg).
+
+message(updated_endpoint(EP, URL)) -->
+    ['Updated SPARQL endpoint ~p to ~p'-[EP, URL]].
