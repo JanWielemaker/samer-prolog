@@ -39,8 +39,6 @@
 :- use_module(library(settings)).
 :- use_module(library(option)).
 :- use_module(library(semweb/sparql_client)).
-:- use_module(library(dcg_core)).
-:- use_module(library(dcg_codes)).
 :- use_module(sparql_dcg).
 :- use_module(concurrency).
 
