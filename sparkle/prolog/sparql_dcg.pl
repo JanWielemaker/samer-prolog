@@ -17,6 +17,10 @@
    resource :< object. % any resource is an object
 
    literal(+literal)   :: object.  % any ground literal is an object
+   string	       :: object.  % a string is a plain literal object
+   number	       :: object.  % a number is a plain literal object
+   string@lang	       :: object.  % literal with language
+   value^^type	       :: object.  % typed literal
    atomic              :< literal. % any atomic can be a plain literal
    lang(atom,atom)     :: literal. % literal with language
    type(resource,atom) :: literal. % typed literal
@@ -160,8 +164,16 @@ expr(X) --> object(X).
 resource(R) --> variable(R), !.
 resource(R) --> uri(R).
 
-object(literal(Lit)) --> literal(Lit).
+object(literal(Lit)) --> !, literal(Lit).
+object(String) --> {string(String)}, !, quote(String).
+object(Number) --> {number(Number)}, !, at(Number).
+object(@(String,Lang)) --> quote(at(String)), "@", at(Lang).
+object(^^(Val,Type)) --> typed(Val), "^^", resource(Type).
 object(Resource) --> resource(Resource).
+
+typed(Val) --> {string(Val)}, !, quote(Val).
+typed(Val) --> {atom(Val)}, !, quote(Val).
+typed(Val) --> {number(Val)}, "\"", at(Val), "\"".
 
 literal(lang(Lang,Val)) --> quote(at(Val)), "@", at(Lang).
 literal(type(Type,Val)) --> quote(wr(Val)), "^^", resource(Type).

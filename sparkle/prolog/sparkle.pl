@@ -7,10 +7,12 @@
    ,  query_goal/3     % Endpoint, Context, Opts
    ,  query_phrase/3   % Endpoint, QueryPhrase, Result
    ,  query_sparql/3 % Endpoint,QueryText,Result
-   ,  (??)/1
-   ,  (??)/2
+   ,  (??)/1				% +Query
+   ,  (??)/2				% ?Endpoint, +Query
    ,  op(1150,fx,??)
    ,  op(1150,xfy,??)
+   ,  op(150,xfx,@)			% String@Lang
+   ,  op(650,xfx,^^)			% Value@Type	(above :)
 	]).
 
 /** <module> Query to SPARQL endpoints with a more Prolog-like syntax
