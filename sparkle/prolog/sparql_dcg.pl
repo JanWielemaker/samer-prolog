@@ -115,6 +115,7 @@ where({Goal}) --> "WHERE ", brace(goal(Goal)).
 where(Goal) --> "WHERE ", brace(goal(Goal)).
 
 %% goal(+Goal)// is det.
+goal(Cond)    --> "FILTER ", cond(Cond), !.
 goal(G1;G2)   --> brace(goal(G1)), " UNION ", brace(goal(G2)).
 goal(\+G)     --> "FILTER NOT EXISTS ", brace(goal(G)). %NB consider MINUS { ... } also
 goal((G1,G2)) --> goal(G1), " . ", goal(G2).
